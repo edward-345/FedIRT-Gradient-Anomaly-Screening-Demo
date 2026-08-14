@@ -18,8 +18,8 @@ vectors already computed in the E-step with no labels, no raw-response rules?
 - Generate clean 2PL data (single school, following the Study 1 / Study 3 DGP).
 - Inject contamination with known ground-truth labels.
 - Compute each student's contribution to the item-parameter gradient (a `2J`-length
-  vector), evaluated at the true item parameters — the same per-student quantity
-  FedIRT-DP clips, kept instead of summed away.
+  vector), evaluated at the true item parameters (the same per-student quantity
+  FedIRT-DP clips, kept instead of summed away)
 - Score rows with LOF / ABOD on those gradient features.
 - Evaluate detection with AUC against the known labels, benchmarked against two
   baselines: LOF on raw responses, and a trivial row-sum rule.
