@@ -26,13 +26,15 @@ vectors already computed in the E-step with no labels, no raw-response rules?
 
 ## Key result
 
-Detection difficulty depends entirely on the contamination type:
+Findings suggest detection difficulty depends on the contamination type.
 
-| Scenario | Rowsum baseline | Gradient-space LOF | Notes |
-|---|---|---|---|
-| All-ones (toy) | ~0.97 | ~.04 | Any naive rule catches it, but inverse relation on LOF |
-| Partial straightlining | ~0.75 | ~0.42 | Mild/ambiguous, no method is clearly stronger|
-| **Random responding** | **~0.38 (chance)** | **~0.76** |  |
+| Scenario | Rowsum baseline | LOF (gradient) | ABOD (gradient) | Notes |
+|---|---|---|---|---|
+| All-ones (toy) | 0.73 | 0.04* | 0.04* | Naive raw-response detection (~0.96) catches it trivially; *detector scores are inverted |
+| Partial straightlining | 0.75 | 0.43 | 0.42 | Mild/ambiguous; no method clearly wins |
+| **Random responding** | **0.38 (chance)** | **0.76** | **0.78** | See below |
+
+Random-responding values are means over 20 seeds (SD ~0.04); other rows are single-seed.
 
 On **random responding**, where the naive row-sum rule collapses to chance (a random responder's total looks normal),
 label-free detection on gradient features recovers contaminated rows at ~0.76 AUC (mean over 20 seeds, SD ~0.04).

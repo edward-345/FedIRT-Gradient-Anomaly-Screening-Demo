@@ -388,43 +388,52 @@ rule.</li>
 </div>
 <div id="key-result" class="section level2">
 <h2>Key result</h2>
-<p>Detection difficulty depends entirely on the contamination type:</p>
+<p>Findings suggest detection difficulty depends on the contamination
+type.</p>
 <table>
 <colgroup>
-<col width="25%" />
-<col width="25%" />
-<col width="25%" />
-<col width="25%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
+<col width="20%" />
 </colgroup>
 <thead>
 <tr class="header">
 <th>Scenario</th>
 <th>Rowsum baseline</th>
-<th>Gradient-space LOF</th>
+<th>LOF (gradient)</th>
+<th>ABOD (gradient)</th>
 <th>Notes</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td>All-ones (toy)</td>
-<td>~0.97</td>
-<td>~.04</td>
-<td>Any naive rule catches it, but inverse relation on LOF</td>
+<td>0.73</td>
+<td>0.04*</td>
+<td>0.04*</td>
+<td>Naive raw-response detection (~0.96) catches it trivially; *detector
+scores are inverted</td>
 </tr>
 <tr class="even">
 <td>Partial straightlining</td>
-<td>~0.75</td>
-<td>~0.42</td>
-<td>Mild/ambiguous, no method is clearly stronger</td>
+<td>0.75</td>
+<td>0.43</td>
+<td>0.42</td>
+<td>Mild/ambiguous; no method clearly wins</td>
 </tr>
 <tr class="odd">
 <td><strong>Random responding</strong></td>
-<td><strong>~0.38 (chance)</strong></td>
-<td><strong>~0.76</strong></td>
-<td></td>
+<td><strong>0.38 (chance)</strong></td>
+<td><strong>0.76</strong></td>
+<td><strong>0.78</strong></td>
+<td>See below</td>
 </tr>
 </tbody>
 </table>
+<p>Random-responding values are means over 20 seeds (SD ~0.04); other
+rows are single-seed.</p>
 <p>On <strong>random responding</strong>, where the naive row-sum rule
 collapses to chance (a random responder’s total looks normal),
 label-free detection on gradient features recovers contaminated rows at
