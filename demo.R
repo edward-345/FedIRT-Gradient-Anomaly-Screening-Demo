@@ -3,7 +3,7 @@ library(FedIRT)
 library(dbscan)
 library(ltm)
 library(mirt)
-set.seed(0)
+set.seed(1)
 
 # Generate Data
 J <- 10      # Number of items (questions, in this case T/F)
@@ -163,6 +163,10 @@ for (i in idx) contaminated_3[i, ] <- rbinom(J, 1, 0.5)   # coin-flip every item
 true_labels_3 <- seq_len(N_k) %in% idx
 
 score_all(contaminated_3, true_labels_3)
+
+## Saving datasets
+save(response_matrix1, contaminated_1, contaminated_2, contaminated_3,
+     file = "demo_data.RData")
 
 ##############
 # ---- Collect per-student LOF scores from every scenario so far ----

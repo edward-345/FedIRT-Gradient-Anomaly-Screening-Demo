@@ -1,0 +1,12 @@
+---
+title: "FedIRT-DP with Contaminated Response Screening"
+author: "Edward J. Lee"
+date: "2026-09-01"
+output: pdf_document
+---
+
+## Introduction
+
+The FedIRT-DP model proposed by Zhou, Luo & Ji is a federated learning approach applied to item response theory models with an added student-level Differential Privacy layer to further obsfucate adverserial attempts to collect student data. The DP layer is also shown to be effective at mitigating the impact of extreme response rows, as shown in Study 3.
+
+
