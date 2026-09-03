@@ -166,7 +166,9 @@ score_all(contaminated_3, true_labels_3)
 
 ## Saving datasets
 save(response_matrix1, contaminated_1, contaminated_2, contaminated_3,
+     true_alpha, true_beta, true_theta,
      file = "demo_data.RData")
+
 
 ##############
 # ---- Collect per-student LOF scores from every scenario so far ----
