@@ -29,6 +29,8 @@ true_beta <- runif(J, -1, 1)    # 10 items
 true_theta <- rnorm(100)        # For each N_k student from only 1 school
 
 
+
+
 #Responses were generated according to the 2PL model probability defined in Eq. 5, setting
 #sk = 0. Specifically, responses were drawn from a Bernoulli distribution based on the com-
 #puted probabilities. We repeated the simulation process 100 times (T = 100) to examine the
