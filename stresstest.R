@@ -62,12 +62,12 @@ bias <- function(est_mat, true_vec) {
 props <- c(1:5) # Range of proportion of contaminated rows
 n_reps <- 100       # Number of simulation process repetitions
 # MSE and Bias output storage 
-mse_a <- bias_a <- mse_b <- bias_b <- numeric(length(props))
+mse_a_ext <- bias_a_ext <- mse_b_ext <- bias_b_ext <- numeric(length(props))
 
 for (i in props) {
   ahat_mat <- matrix(NA_real_, n_reps, J)
   bhat_mat <- matrix(NA_real_, n_reps, J)
-  for (t in (1:100)) {
+  for (t in (1:n_reps)) {
     # generate data
     ext_data <- data_generator(true_alpha, true_beta)
     # contaminate data for current p
@@ -81,13 +81,38 @@ for (i in props) {
     bhat_mat[t, ] <- fitted_model$b
   }
   # once all 100 is done, get mean bias and MSE
-  mse_a[i]  <- mse(ahat_mat, true_alpha)
-  bias_a[i] <- bias(ahat_mat, true_alpha)
-  mse_b[i]  <- mse(bhat_mat, true_beta)
-  bias_b[i] <- bias(bhat_mat, true_beta)
+  mse_a_ext[i]  <- mse(ahat_mat, true_alpha)
+  bias_a_ext[i] <- bias(ahat_mat, true_alpha)
+  mse_b_ext[i]  <- mse(bhat_mat, true_beta)
+  bias_b_ext[i] <- bias(bhat_mat, true_beta)
 }
 
+# Plotting MSE,Bias for Extreme Values case -----------------
+props_pct <- c(10, 20, 30, 40, 50)   # x-axis as percentages
 
+par(mfrow = c(2, 2), mar = c(4, 4, 3, 1))
+
+# top-left: MSE ones, discrimination
+plot(props_pct, mse_a_ext, type = "b", pch = 19, col = "blue",
+     xlab = "Extreme value ratio (%)", ylab = "Mean",
+     main = "MSE ones — Discrimination")
+
+# top-right: Bias ones, discrimination
+plot(props_pct, bias_a_ext, type = "b", pch = 19, col = "blue",
+     xlab = "Extreme value ratio (%)", ylab = "Mean",
+     main = "Bias ones — Discrimination")
+
+# bottom-left: MSE ones, difficulty
+plot(props_pct, mse_b_ext, type = "b", pch = 19, col = "blue",
+     xlab = "Extreme value ratio (%)", ylab = "Mean",
+     main = "MSE ones — Difficulty")
+
+# bottom-right: Bias ones, difficulty
+plot(props_pct, bias_b_ext, type = "b", pch = 19, col = "blue",
+     xlab = "Extreme value ratio (%)", ylab = "Mean",
+     main = "Bias ones — Difficulty")
+
+par(mfrow = c(1, 1))   # reset layout
 
 
 
