@@ -253,7 +253,26 @@ apply(res, 2, sd)      # stability
 
 
 
+# Saving outputs ---------------------------------------------------------------
+auc_ones <- score_all(contaminated_1, true_labels_1)
+auc_str <- score_all(contaminated_2, true_labels_2)
+auc_rnd <- score_all(contaminated_3, true_labels_3)
+res_means <- colMeans(res)
+res_sd <- apply(res, 2, sd)
+mean_lof_group <- rbind(
+  ones_grad = tapply(tab_ones$lof_grad, tab_ones$is_contam, mean),
+  ones_raw = tapply(tab_ones$lof_raw, tab_ones$is_contam, mean),
+  str_grad = tapply(tab_str$lof_grad, tab_str$is_contam, mean),
+  str_raw = tapply(tab_str$lof_raw, tab_str$is_contam, mean)
+)
+top_prop_str <- c(bot50 = top_prop(ordered_asc, 0.50),
+                  bot25 = top_prop(ordered_asc, 0.25),
+                  bot20 = top_prop(ordered_asc, 0.20))
 
+save(auc_ones, auc_str, auc_rnd,
+     abod_results, compare, res, res_means, res_sd,
+     mean_lof_group, top_prop_str,
+     file = "detection_results.RData")
 
 
 

@@ -1,5 +1,5 @@
 ---
-title: "FedIRT-DP with Contaminated Response Screening"
+title: "FedIRT-DP with Inaccurate Response Screening"
 author: "Edward J. Lee"
 date: "2026-09-01"
 output: pdf_document
@@ -11,7 +11,7 @@ The FedIRT-DP model developed by Zhou, Luo & Ji (2025) is a Federated Learning a
 
 The primary motivation behind this report was how FedIRT, despite its robustness against extreme response rows with DP, possesses no counter-measures against such rows. This motivated me to look into the potential benefits of an implementation that could identify such response rows from the individual student gradients.
 
-A brief initial check proved that Local Outlier Factor (LOF) and Angle-Based Outlier Detection (ABOD) algorithms were able to identify the rows with extreme responses. However, before further examination, two preceding questions had to be addressed: Is the impact of extreme response rows significant enough to risk false positives from an additional statistical model to detect them? And how does FedIRT fare against other forms of contaminated responses?
+A brief initial check proved that Local Outlier Factor (LOF) and Angle-Based Outlier Detection (ABOD) algorithms were able to identify the rows with extreme responses. However, before further examination, two preceding questions had to be addressed: Is the impact of extreme response rows significant enough to risk false positives from an additional statistical model to detect them? And how does FedIRT fare against other forms of inaccurate responses?
 
 ### Stress-Testing FedIRT Against Inaccurate Responses
 
@@ -41,7 +41,7 @@ par(mfrow = c(2, 2), mar = c(4, 4, 3, 1), oma = c(3, 0, 3, 0))
 # ---- helper to reduce repetition ----
 overlay <- function(ext, str, rnd, main, ylim, baseline) {
   plot(props_pct, ext, type = "b", pch = 19, col = cols["extreme"], ylim = ylim,
-       xlab = "Extreme value ratio (%)", ylab = "Mean", main = main)
+       xlab = "Contamination ratio (%)", ylab = "Mean", main = main)
   lines(props_pct, str, type = "b", pch = 19, col = cols["straight"])
   lines(props_pct, rnd, type = "b", pch = 19, col = cols["random"])
   abline(h = baseline, lty = 2, col = cols["clean"], lwd = 2)   # clean reference
@@ -72,49 +72,57 @@ par(mfrow = c(1, 1))
 
 The MSE and bias of the other conditions, straightlining and random reporting, tend to follow the same positive relationship with the proportion of inaccurate responses but to a lesser degree. An exception to this is the bias of the discrimination parameter for random reporting, which steadily decreases below the baseline levels.
 
-```{r tbl-mse, echo=FALSE, results='asis'}
-t1 <- knitr::kable(
- data.frame(
-  `Prop (%)` = props_pct,
-  Clean = clean_mseA, Extreme = mse_a_ext,
-  Straight = mse_a_str, Random = mse_a_rnd,
-  check.names = FALSE
- ),
- digits = 3, align = "r", booktabs = TRUE, format = "latex"
-)
+The severity of the damage done to the MSE and bias of the parameters visibly depends on the number of rows that are similar to extreme value responses. The more rows there are that consist of a single repeated response, the more MSE and bias are affected. Given that random responding is the least similar to this pattern, it has the most distinct bias and MSE values from the extreme response cases- with partial straightlining sitting in between them as the middle ground between the two as per its definition. 
 
-t2 <- knitr::kable(
+```{r tbl-mse, echo=FALSE}
+library(kableExtra)
+knitr::kable(
  data.frame(
-  `Prop (%)` = props_pct,
-  Clean = clean_mseB, Extreme = mse_b_ext,
-  Straight = mse_b_str, Random = mse_b_rnd,
-  check.names = FALSE
+  props_pct,
+  clean_mseA, mse_a_ext, mse_a_str, mse_a_rnd,
+  clean_mseB, mse_b_ext, mse_b_str, mse_b_rnd
  ),
- digits = 3, align = "r", booktabs = TRUE, format = "latex"
-)
+ digits = 3, align = "r", booktabs = TRUE,
+ col.names = c("Prop (%)", "Clean", "Extreme", "Straight", "Random",
+               "Clean", "Extreme", "Straight", "Random"),
+ caption = "MSE by contamination type and proportion"
+) |>
+ kableExtra::add_header_above(c(" " = 1, "Discrimination (a)" = 4, "Difficulty (b)" = 4),
+                              bold = TRUE) |>
+ kableExtra::column_spec(5, border_right = TRUE) |>
+ kableExtra::kable_styling(latex_options = "hold_position")
+```
 
-cat(
- "\\begin{table}[!ht]\n\\centering\n",
- "\\begin{minipage}{.48\\linewidth}\n\\centering\n", t1, "\n\\end{minipage}\n",
- "\\hfill\n",
- "\\begin{minipage}{.48\\linewidth}\n\\centering\n", t2, "\n\\end{minipage}\n",
- "\\caption{MSE: discrimination (left), difficulty (right)}\n\\end{table}\n",
- sep = ""
-)
+
+```{r tbl-bias, echo=FALSE}
+knitr::kable(
+ data.frame(
+  props_pct,
+  clean_biasA, bias_a_ext, bias_a_str, bias_a_rnd,
+  clean_biasB, bias_b_ext, bias_b_str, bias_b_rnd
+ ),
+ digits = 3, align = "r", booktabs = TRUE,
+ col.names = c("Prop (%)", "Clean", "Extreme", "Straight", "Random",
+               "Clean", "Extreme", "Straight", "Random"),
+ caption = "Bias by contamination type and proportion"
+) |>
+ kableExtra::add_header_above(c(" " = 1, "Discrimination (a)" = 4, "Difficulty (b)" = 4),
+                              bold = TRUE) |>
+ kableExtra::column_spec(5, border_right = TRUE) |>
+ kableExtra::kable_styling(latex_options = "hold_position")
 ```
 
 ### Anomaly Detection to Identify Inaccurate Responses from Per-Student Gradients
-
 ## Procedure
 
-The same conditions and parameters were used, except for the number of schools and the proportion of contaminated rows. LOF and ABOD algorithims were fit on the 100 by 10 response matrices of a single school across different contamination conditions. The proportion of contaminated rows was fixed at 0.3.
+The same conditions and parameters were used, except for the number of schools and the proportion of contaminated rows. LOF and ABOD algorithms were fit on the 100 by 10 response matrices of a single school across different contamination conditions. The proportion of contaminated rows was fixed at 0.3.
 
 Performance was measured using AUC given the objective was to identify inaccurate responses, and identified rows could be compared against their true labels.
 
 ## Results
 
 ```{r}
-# table of AUC 
+
 ```
 
 ### Discussion and Future Directions
