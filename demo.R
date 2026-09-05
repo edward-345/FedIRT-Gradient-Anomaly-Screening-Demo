@@ -1,3 +1,7 @@
+# Anomaly Detection on Student Gradients Pre-EM. Testing on
+# Extreme responses (all-1s)
+# Straightlining
+#------------------------------------
 remotes::install_github("Feng-Ji-Lab/FedIRT")
 library(FedIRT)
 library(dbscan)
@@ -5,47 +9,31 @@ library(ltm)
 library(mirt)
 set.seed(1)
 
-# Generate Data
+# Generate Data ----------------------------------------------------------------
 J <- 10      # Number of items (questions, in this case T/F)
 K <- 1      # Number of schools, only 1 needed for demo
 N_k <- 100   # Number of students per school
 s_k <- 0     # School-level effect is fixed in Study 3
-T <- 0       # Number of simulation process repetitions
-
-
-#N_k students answer J items. So a single student is a vector of 1xJ, and a
-#school's response matrix is N_k x J.
-#- Keep in mind the entire response set from every school isnt in a single matrix
-#  by design
-#- Package takes a list of response matrices as inputdata = list(matrix1, …)
-
-#Following Study 2,  FIXED item parameters are formed from
-#- alpha drawn uniformly from [0.5, 2]
-#- beta drawn uniformly from [-1, 1]
-#- theta (student ability) drawn from N(0,1)
+n_reps <- 0       # Number of simulation process repetitions
 
 true_alpha <- runif(J, 0.5, 2)  # 10 items
 true_beta <- runif(J, -1, 1)    # 10 items
-true_theta <- rnorm(100)        # For each N_k student from only 1 school
-
-
-
+true_theta_ad <- rnorm(100)        # For each N_k student from only 1 school
 
 #Responses were generated according to the 2PL model probability defined in Eq. 5, setting
 #sk = 0. Specifically, responses were drawn from a Bernoulli distribution based on the com-
-#puted probabilities. We repeated the simulation process 100 times (T = 100) to examine the
-#robustness of our method.
+#puted probabilities.
 #- For each student and each item they answer, generate a probability using their
 #  true theta and the fixed true_alpha and true_beta
 #- Then feed that probability into a bernoulli dist to get 0 or 1
 #- Do this for all students 
 
-eta <- sweep(outer(true_theta + s_k, true_beta, "-"), 2, true_alpha, "*")
-P <- plogis(eta)                                   # 100 x 10 probabilities
-response_matrix1 <- matrix(rbinom(length(P), 1, P), nrow = N_k)   # 100 x 10
+logits_ad <- sweep(
+  outer(true_theta_ad + s_k, true_beta, "-"), 2, true_alpha, "*")
+P_ad <- plogis(logits_ad)                             # 100 x 10 probabilities
+response_matrix1 <- matrix(rbinom(length(P_ad), 1, P_ad), nrow = N_k) # 100 x 10
 
-# Contaminate fixed amount
-# Proportions of .1, .2,..,.5 were all 0 or all 1
+# Contaminating fixed amount (Ext Responses, all 1s) ---------------------------
 p <- 0.3
 m <- round(p * N_k)          # number of rows to be contaminated
 idx <- sample(N_k, m)        # randomly selected rows
@@ -54,14 +42,13 @@ contaminated_1 <- response_matrix1
 contaminated_1[idx, ] <- 1L
 true_labels_1 <- seq_len(N_k) %in% idx # TRUE are contaminated
 
-################
 
-# Computing per-student gradients
+# Per-student gradients --------------------------------------------------------
 # We want a 100 x 2J matrix: each row is one student's contribution to the
 # item-parameter gradients (J alpha-derivatives, then J beta-derivatives).
-# From FedIRT Eq 19-20, but WITHOUT the sum over students we keep each
+# From FedIRT Eq 19-20, but without the sum over students we keep each
 # student's own gradient instead of collapsing them.
-#- Evaluate at the TRUE alpha/beta: no fitted model exists in this demo
+#- Evaluate at the TRUE alpha/beta since no fitted model exists in this demo
 #- scoring the contaminated data against the clean truth
 #- Reuse the package's quadrature grid: GH.X = nodes V(n), GH.A = weights A(n)
 
@@ -93,7 +80,7 @@ all(abs(rowSums(post) - 1) < 1e-8)   # posteriors normalise
 dim(post)
 dim(G)
 
-# Fit LOF on the gradient features
+# Local Outlier Factor ---------------------------------------------------------
 #- minPts = neighborhood size (k); ~10-20 is typical, keep it below cluster size
 #- scale() puts alpha- and beta-gradient columns on comparable footing for
 #  the Euclidean distance LOF uses
@@ -114,8 +101,8 @@ auc_sum_1   <- auc_manual(score_sum_1, true_labels_1)
 
 c(gradient = auc_gradient_1, raw = auc_raw_1, rowsum = auc_sum_1)
 
-###########################
-# Reusable scoring function
+
+# Reusable scoring function ----------------------------
 # grad_features(X): build the 100 x 2J student matrix for any responses X
 grad_features <- function(X) {
   loglik <- X %*% t(log(pi_nj)) + (1 - X) %*% t(log(1 - pi_nj))
@@ -133,32 +120,26 @@ grad_features <- function(X) {
 # score_all(X, labels): three AUCs for gradient-space LOF, raw-response LOF, trivial rowSums
 score_all <- function(X, labels) {
   c(gradient = auc_manual(lof(scale(grad_features(X)), minPts = 20), labels),
-    raw      = auc_manual(lof(scale(X),                 minPts = 20), labels),
-    rowsum   = auc_manual(abs(rowSums(X) - mean(rowSums(X))),         labels))
+    raw = auc_manual(lof(scale(X), minPts = 20), labels),
+    rowsum = auc_manual(abs(rowSums(X) - mean(rowSums(X))), labels))
 }
 
-# ---- Realistic contamination: partial straightlining ----
-# A student picks ONE value and repeats it across a RANDOM SUBSET of items,
-# answering the rest genuinely. Per-student variation in value AND subset means:
-#  - rows aren't identical      -> fixes the LOF duplicate-row pathology from all-1s
-#  - the straightlined items ignore item difficulty -> shows up in gradient space
-set.seed(1)
+# Partial Straightlining -------------------------------------------------------
 p   <- 0.3
 m   <- round(p * N_k)
 idx <- sample(N_k, m)
 
-contaminated_2 <- response_matrix1                 # start from the CLEAN responses
+contaminated_2 <- response_matrix1          # start from the CLEAN responses
 for (i in idx) {
-  v     <- sample(c(0L, 1L), 1)                    # this student's straightline value
-  n_str <- sample(round(0.6 * J):J, 1)             # how many items they straightline
-  items <- sample(J, n_str)                        # which items
-  contaminated_2[i, items] <- v                    # overwrite only those items
+  v     <- sample(c(0L, 1L), 1)             # this student's straightline value
+  n_str <- sample(round(0.6 * J):J, 1)      # how many items they straightline
+  items <- sample(J, n_str)                 # which items
+  contaminated_2[i, items] <- v             # overwrite only those items
 }
 true_labels_2 <- seq_len(N_k) %in% idx
 
 score_all(contaminated_2, true_labels_2)
 
-set.seed(1)
 idx <- sample(N_k, m)
 contaminated_3 <- response_matrix1
 for (i in idx) contaminated_3[i, ] <- rbinom(J, 1, 0.5)   # coin-flip every item
@@ -172,10 +153,8 @@ save(response_matrix1, contaminated_1, contaminated_2, contaminated_3,
      file = "demo_data.RData")
 
 
-##############
-# ---- Collect per-student LOF scores from every scenario so far ----
-# For each contamination type: gradient-space LOF, raw-response LOF, and the
-# true label. Higher LOF = more outlying (in principle).
+# Per-Student LOF scores -------------------------------------------------------
+# For each contamination type: gradient-space LOF, raw-response LOF, true label
 
 score_table <- function(X, labels) {
   data.frame(
@@ -219,13 +198,13 @@ c(bot50 = top_prop(ordered_asc, 0.50),
   bot25 = top_prop(ordered_asc, 0.25),
   bot20 = top_prop(ordered_asc, 0.20))
 
-##########################################
+# Angle Based Outlier Detector -------------------------------------------------
 library(abodOutlier)
-
 # abod() returns abof; SMALL abof = outlier, so negate -> "higher = more outlying"
 # (matches LOF direction, so auc_manual reads the same way across methods)
 abod_score <- function(X) -abod(as.data.frame(X), method = "complete")
 
+# Contamination function
 make_contam <- function(type, p = 0.3, seed = 1) {
   set.seed(seed)
   idx <- sample(N_k, round(p * N_k))

@@ -310,6 +310,13 @@ legend("bottom", legend = c("Extreme (all-1s)", "Straightlining", "Random", "Cle
 
 par(mfrow = c(1, 1))
 
+save(props_pct, mse_a_ext, mse_a_str, mse_a_rnd,
+     mse_b_ext, mse_b_str, mse_b_rnd,
+     bias_a_ext, bias_a_str, bias_a_rnd,
+     bias_b_ext, bias_b_str, bias_b_rnd,
+     clean_mseA, clean_mseB, clean_biasA, clean_biasB,
+     file = "stresstest_results.RData")
+
 # Comparison Plots Log Scaled -------------------------------------------------
 cols <- c(extreme = "red", straight = "blue", random = "darkgreen")
 
