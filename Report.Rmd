@@ -7,9 +7,9 @@ output: pdf_document
 
 ## Overview
 
-The FedIRT-DP model developed by Zhou, Luo & Ji (2025) is a Federated Learning approach applied to Item Response Theory (IRT) models with an added student-level Differential Privacy (DP) layer to further obfuscate adversarial attempts to reverse-engineer student data. On top of effectively anonymizing student data, the DP layer is also shown to be capable of mitigating the impact of extreme response rows, as shown in Study 3.
+The FedIRT-DP model developed by Zhou, Luo & Ji (2025) is a Federated Learning approach applied to Item Response Theory (IRT) models with an added student-level Differential Privacy (DP) layer to further obfuscate attempts to reverse-engineer respondent data. On top of effectively anonymizing student data, the DP layer is also shown to be capable of mitigating the impact of extreme response rows, as shown in Study 3.
 
-The primary motivation behind this report was how FedIRT, despite its robustness against extreme response rows with DP, possesses no counter-measures against such rows. This motivated me to look into the potential benefits of an implementation that could identify such response rows from the individual student gradients.
+The primary motivation behind this report was how FedIRT, despite its robustness against extreme response rows with DP, possesses no methods to identify and isolate such rows. This motivated me to look into the potential benefits of an implementation that could identify such response rows from the individual student gradients.
 
 A brief initial check proved that Local Outlier Factor (LOF) and Angle-Based Outlier Detection (ABOD) algorithms were able to identify the rows with extreme responses. However, before further examination, two preceding questions had to be addressed: Is the impact of extreme response rows significant enough to risk false positives from an additional statistical model to detect them? And how does FedIRT fare against other forms of inaccurate responses?
 
@@ -27,16 +27,16 @@ The same MSE and bias formulas (Eq. 26) were used from the study for each propor
 
 ## Results
 
-The behavior of the MSE and bias of the difficulty and discrimination parameters are consistent with those from the original study for the extreme response condition. MSE and bias tend to increase as the proportion of responses consisting of all ones increase, except for the difficulty parameter which slightly decreases.
+The behavior of the MSE and bias of the difficulty and discrimination parameters are consistent with those from the original study for the extreme response condition. MSE and bias tend to increase as the proportion of responses consisting of all ones increase, except for the difficulty parameter bias, which grows increasingly negative.
 
-```{r contam-plot, echo=FALSE, fig.width=9, fig.height=7, fig.align='center'}
+```{r contam-plot, echo=FALSE, fig.width=6.5, fig.height=5.5, fig.align='center', out.width='100%'}
 load("stresstest_results.RData")
 # Comparison Plots ---------------------------------------------------------
 
 # colors + legend labels (baseline included; comment its lines out until you have it)
 cols <- c(extreme = "red", straight = "blue", random = "darkgreen", clean = "gray40")
 
-par(mfrow = c(2, 2), mar = c(4, 4, 3, 1), oma = c(3, 0, 3, 0))
+par(mfrow = c(2, 2), mar = c(4, 4, 2, 2), oma = c(3, 0, 3, 0))
 
 # ---- helper to reduce repetition ----
 overlay <- function(ext, str, rnd, main, ylim, baseline) {
@@ -115,7 +115,7 @@ knitr::kable(
 ### Anomaly Detection to Identify Inaccurate Responses from Per-Student Gradients
 ## Procedure
 
-The same conditions and parameters were used, except for the number of schools and the proportion of contaminated rows. LOF and ABOD algorithms were fit on both gradients and the raw scores of a single 100 by 10 school response matrix. An additional simple extreme response indicator using the absolute deviation of each student's score is included as a baseline comparison. The proportion of contaminated rows was fixed at 0.3.
+The same conditions and parameters were used, except for the number of schools and the proportion of contaminated rows. LOF and ABOD algorithms were fit on both gradients and the raw scores of a single 100 by 10 school response matrix. Since FedIRT aggregates gradients before they leave each site, per-student gradients were recomputed from Eq 19-20 without the student-sum. An additional simple extreme response indicator using the absolute deviation of each student's score is included as a baseline comparison. The proportion of contaminated rows was fixed at 0.3.
 
 Performance was measured using AUC given the objective was to identify inaccurate responses, and identified rows could be compared against their true labels.
 
@@ -135,7 +135,7 @@ det_tbl <- data.frame(
 )
 
 knitr::kable(det_tbl, align = "r", booktabs = TRUE,
- caption = "Detection AUC by contamination type (single seed, p = 0.3)") |>
+ caption = "Detection AUC by contamination type (p = 0.3)") |>
  kableExtra::kable_styling(latex_options = "hold_position")
 ```
 
@@ -161,7 +161,7 @@ knitr::kable(inv_tbl, align = "r", booktabs = TRUE,
 
 Due to this effect, the simple absolute deviation scoring method is much more capable in addressing this specific pattern of inaccurate responding. 
 
-However, where the LOF and ABOD algorithms outperform the absolute deviation scoring are the random responding cases. ABOD seems to marginally outperform LOF on detecting random respondents when fitted on the gradients, as confirmed across 20 different seeds below. 
+However, where the LOF and ABOD algorithms outperform the absolute deviation scoring are the random responding cases. ABOD seems to outperform LOF on detecting random respondents when fitted on the gradients, as confirmed across 20 different seeds below. 
 
 ```{r, echo=FALSE}
 stab_tbl <- data.frame(
@@ -180,4 +180,13 @@ knitr::kable(stab_tbl, align = "r", booktabs = TRUE,
 
 ### Discussion and Future Directions
 
+The original study has already demonstrated the effects of extreme response rows on the bias and MSE of the item parameters- that these values will increase as more rows are contaminated, except for the bias of the difficulty parameter which grows increasingly negative. Straightlining follows a similar pattern at much smaller magnitude, but random responding departs from it: its discrimination bias carries the opposite sign, deflating rather than inflating the parameter.
+
+The detectability of these inaccurate responses is dependent on the geometry of the contamination patterns, not so much the severity of the contamination. This causes a misalignment between the contamination worth removing and the contamination we can detect: truly harmful cases are trivially caught by an absolute deviation method (Row sum $AUC \approx 0.79$ for extreme responses and straightlining), while the density-based gradient methods only catch random responding, which is the least harmful type.
+
+Taken together, a detection stage does not appear justified for the contamination types and binary scoring examined here. Harmful patterns are already caught by absolute deviation and absorbed by DP clipping, while the patterns the gradient detectors uniquely identify do little damage to begin with.
+
+The gradient features did not clearly outperform detection on the raw responses, which is expected under binary scoring where the two are nearly redundant, and is a further reason the polytomous case is worth testing.
+
+The next steps from here should be an examination of the net-effect of detecting and removing contaminated rows. Would introducing the probability of false-positives in order to remove inaccurate/contaminated responses be worth it over simply ignoring their effect on estimate accuracy? Another potential avenue could be to test the efficacy of these algorithms against other potential forms of inaccurate responding, such as cheating, sharing responses, and guessing concentrated on difficult items. Furthermore, these instances could be further examined in a partial credit scoring test, rather than dichotomous scoring. 
 
