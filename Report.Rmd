@@ -115,14 +115,69 @@ knitr::kable(
 ### Anomaly Detection to Identify Inaccurate Responses from Per-Student Gradients
 ## Procedure
 
-The same conditions and parameters were used, except for the number of schools and the proportion of contaminated rows. LOF and ABOD algorithms were fit on the 100 by 10 response matrices of a single school across different contamination conditions. The proportion of contaminated rows was fixed at 0.3.
+The same conditions and parameters were used, except for the number of schools and the proportion of contaminated rows. LOF and ABOD algorithms were fit on both gradients and the raw scores of a single 100 by 10 school response matrix. An additional simple extreme response indicator using the absolute deviation of each student's score is included as a baseline comparison. The proportion of contaminated rows was fixed at 0.3.
 
 Performance was measured using AUC given the objective was to identify inaccurate responses, and identified rows could be compared against their true labels.
 
 ## Results
 
-```{r}
+```{r, echo=FALSE}
+load("detection_results.RData")
 
+det_tbl <- data.frame(
+ Type = c("Extreme (all-1s)", "Straightlining", "Random"),
+ `LOF (grad)` = round(compare[, "lof_grad"], 3),
+ `ABOD (grad)` = round(abod_results[, "abod_grad"], 3),
+ `ABOD (raw)` = round(abod_results[, "abod_raw"], 3),
+ `Row-sum rule` = round(abod_results[, "rowsum"], 3),
+ check.names = FALSE,
+ row.names = NULL
+)
+
+knitr::kable(det_tbl, align = "r", booktabs = TRUE,
+ caption = "Detection AUC by contamination type (single seed, p = 0.3)") |>
+ kableExtra::kable_styling(latex_options = "hold_position")
+```
+
+LOF and ABOD are density/local methods, thus a large number of similar points induces the opposite effect on AUC scoring. A majority of similar points in the case of the extreme responses and straightlining would appear as "typical" to these algorithms, and any response that is the minority would be treated as an outlier whether the answer is scored correctly or not. 
+
+We can confirm this is the case when we compare the average LOF and ABOD scores for clean rows against the known contaminated rows. Contaminated rows scoring lower than clean rows is the density inversion that drives AUC below 0.5.
+
+```{r, echo=FALSE}
+inv_tbl <- data.frame(
+ Scenario = c("Extreme, gradient", "Straightlining, gradient"),
+ `Clean rows` = round(c(mean_lof_group["ones_grad", "FALSE"],
+                        mean_lof_group["str_grad", "FALSE"]), 3),
+ `Contaminated rows` = round(c(mean_lof_group["ones_grad", "TRUE"],
+                              mean_lof_group["str_grad", "TRUE"]), 3),
+ check.names = FALSE,
+ row.names = NULL
+)
+
+knitr::kable(inv_tbl, align = "r", booktabs = TRUE,
+ caption = "Mean LOF score, clean vs contaminated rows. ") |>
+ kableExtra::kable_styling(latex_options = "hold_position")
+```
+
+Due to this effect, the simple absolute deviation scoring method is much more capable in addressing this specific pattern of inaccurate responding. 
+
+However, where the LOF and ABOD algorithms outperform the absolute deviation scoring are the random responding cases. ABOD seems to marginally outperform LOF on detecting random respondents when fitted on the gradients, as confirmed across 20 different seeds below. 
+
+```{r, echo=FALSE}
+stab_tbl <- data.frame(
+ Statistic = c("Mean AUC", "SD"),
+ LOF = round(c(res_means["lof"], res_sd["lof"]), 3),
+ ABOD = round(c(res_means["abod"], res_sd["abod"]), 3),
+ `Row-sum rule` = round(c(res_means["rowsum"], res_sd["rowsum"]), 3),
+ check.names = FALSE,
+ row.names = NULL
+)
+
+knitr::kable(stab_tbl, align = "r", booktabs = TRUE,
+ caption = "Detection AUC on random responding across 20 seeds (gradient features).") |>
+ kableExtra::kable_styling(latex_options = "hold_position")
 ```
 
 ### Discussion and Future Directions
+
+
