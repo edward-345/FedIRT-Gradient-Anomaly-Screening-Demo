@@ -1,5 +1,5 @@
 ---
-title: "FedIRT-DP with Inaccurate Response Screening"
+title: "FedIRT with Inaccurate Response Screening"
 author: "Edward J. Lee"
 date: "2026-09-01"
 output: pdf_document
@@ -7,15 +7,15 @@ output: pdf_document
 
 ## Overview
 
-The FedIRT-DP model developed by Zhou, Luo & Ji (2025) is a Federated Learning approach applied to Item Response Theory (IRT) models with an added student-level Differential Privacy (DP) layer to further obfuscate attempts to reverse-engineer respondent data. On top of effectively anonymizing student data, the DP layer is also shown to be capable of mitigating the impact of extreme response rows, as shown in Study 3.
+The FedIRT-DP model developed by Zhou, Luo, & Ji (2025) is a Federated Learning approach applied to Item Response Theory (IRT) models with an added student-level Differential Privacy (DP) layer to further obfuscate attempts to reverse-engineer respondent data. On top of effectively anonymizing student data, the DP layer is also shown to be capable of mitigating the impact of extreme response rows, as shown in Study 3.
 
 The primary motivation behind this report was how FedIRT, despite its robustness against extreme response rows with DP, possesses no methods to identify and isolate such rows. This motivated me to look into the potential benefits of an implementation that could identify such response rows from the individual student gradients.
 
-A brief initial check proved that Local Outlier Factor (LOF) and Angle-Based Outlier Detection (ABOD) algorithms were able to identify the rows with extreme responses. However, before further examination, two preceding questions had to be addressed: Is the impact of extreme response rows significant enough to risk false positives from an additional statistical model to detect them? And how does FedIRT fare against other forms of inaccurate responses?
+A brief initial check proved that Local Outlier Factor (LOF) (Breunig et al. 2000) and Angle-Based Outlier Detection (ABOD) (Kriegel et al. 2008) algorithms were able to identify the rows with extreme responses. However, before further examination, two preceding questions had to be addressed: Is the impact of extreme response rows significant enough to risk false positives from an additional statistical model to detect them? And how does FedIRT fare against other forms of inaccurate responses?
 
-### Stress-Testing FedIRT Against Inaccurate Responses
+## Stress-Testing FedIRT Against Inaccurate Responses
 
-## Procedure
+### Procedure
 
 Staying faithful to the study, all parameters were followed if explicitly stated; by the very least inferred if the paper implied so. Specifically, school effect was set to $s_k = 0$, with each of the 10 schools ($K = 10$) having 100 students each ($N_k = 100$). The test given to each school was dichotomously scored with 10 items ($J = 10$),
 
@@ -25,7 +25,7 @@ The contamination conditions examined were straightlining (a certain number of i
 
 The same MSE and bias formulas (Eq. 26) were used from the study for each proportion and contamination condition.
 
-## Results
+### Results
 
 The behavior of the MSE and bias of the difficulty and discrimination parameters are consistent with those from the original study for the extreme response condition. MSE and bias tend to increase as the proportion of responses consisting of all ones increase, except for the difficulty parameter bias, which grows increasingly negative.
 
@@ -112,14 +112,14 @@ knitr::kable(
  kableExtra::kable_styling(latex_options = "hold_position")
 ```
 
-### Anomaly Detection to Identify Inaccurate Responses from Per-Student Gradients
-## Procedure
+## Anomaly Detection to Identify Inaccurate Responses from Per-Student Gradients
+### Procedure
 
 The same conditions and parameters were used, except for the number of schools and the proportion of contaminated rows. LOF and ABOD algorithms were fit on both gradients and the raw scores of a single 100 by 10 school response matrix. Since FedIRT aggregates gradients before they leave each site, per-student gradients were recomputed from Eq 19-20 without the student-sum. An additional simple extreme response indicator using the absolute deviation of each student's score is included as a baseline comparison. The proportion of contaminated rows was fixed at 0.3.
 
 Performance was measured using AUC given the objective was to identify inaccurate responses, and identified rows could be compared against their true labels.
 
-## Results
+### Results
 
 ```{r, echo=FALSE}
 load("detection_results.RData")
@@ -190,3 +190,19 @@ The gradient features did not clearly outperform detection on the raw responses,
 
 The next steps from here should be an examination of the net-effect of detecting and removing contaminated rows. Would introducing the probability of false-positives in order to remove inaccurate/contaminated responses be worth it over simply ignoring their effect on estimate accuracy? Another potential avenue could be to test the efficacy of these algorithms against other potential forms of inaccurate responding, such as cheating, sharing responses, and guessing concentrated on difficult items. Furthermore, these instances could be further examined in a partial credit scoring test, rather than dichotomous scoring. 
 
+\newpage
+
+## References
+
+\begingroup
+\setlength{\parindent}{-0.2in}
+\setlength{\leftskip}{0.2in}
+\setlength{\parskip}{8pt}
+\indent
+Breunig, M. M., Kriegel, H.-P., Ng, R. T., & Sander, J. (2000). LOF: Identifying density-based local outliers. *ACM SIGMOD Record, 29*(2), 93–104. https://doi.org/10.1145/335191.335388
+
+Kriegel, H.-P., Schubert, M., & Zimek, A. (2008). Angle-based outlier detection in high-dimensional data. In *Proceedings of the 14th ACM SIGKDD International Conference on Knowledge Discovery and Data Mining* (pp. 444–452). Association for Computing Machinery. https://doi.org/10.1145/1401890.1401946
+
+Zhou, B., Luo, N., & Ji, F. (2025). *Federated item response theory models*. arXiv. https://doi.org/10.48550/arXiv.2506.21744
+
+\endgroup
